@@ -1,0 +1,266 @@
+version: '3.9'
+
+# ============================================================================
+# AICaffe Platform - Docker Compose
+# Complete microservices architecture with PostgreSQL, Redis, and all services
+# ============================================================================
+
+services:
+  # ── Database ─────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: aicaffe-postgres
+    environment:
+      POSTGRES_DB: aicaffe
+      POSTGRES_USER: aicaffe
+      POSTGRES_PASSWORD: aicaffe_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aicaffe"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aicaffe-net
+
+  # ── Cache ────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: aicaffe-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - aicaffe-net
+
+  # ── API Gateway ──────────────────────────────────────────────────
+  api-gateway:
+    build:
+      context: ../services/api-gateway
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-gateway
+    ports:
+      - "8000:8000"
+    environment:
+      - JWT_SECRET=aicaffe-change-this-in-production-secret
+      - AUTH_SERVICE_URL=http://auth-service:8001
+      - MODEL_REGISTRY_URL=http://model-registry:8002
+      - TOKEN_SERVICE_URL=http://token-service:8003
+      - RECOMMENDATION_URL=http://recommendation-engine:8004
+      - NEWS_SERVICE_URL=http://news-aggregator:8005
+      - AI_PROXY_URL=http://ai-proxy-service:8006
+      - BILLING_SERVICE_URL=http://billing-service:8007
+    depends_on:
+      - auth-service
+      - model-registry
+      - token-service
+    networks:
+      - aicaffe-net
+
+  # ── Auth Service ─────────────────────────────────────────────────
+  auth-service:
+    build:
+      context: ../services/auth-service
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-auth
+    ports:
+      - "8001:8001"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - JWT_SECRET=aicaffe-change-this-in-production-secret
+      - PORT=8001
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aicaffe-net
+
+  # ── Model Registry ──────────────────────────────────────────────
+  model-registry:
+    build:
+      context: ../services/model-registry
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-models
+    ports:
+      - "8002:8002"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - PORT=8002
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aicaffe-net
+
+  # ── Token Service ────────────────────────────────────────────────
+  token-service:
+    build:
+      context: ../services/token-service
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-tokens
+    ports:
+      - "8003:8003"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - PORT=8003
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aicaffe-net
+
+  # ── Recommendation Engine ────────────────────────────────────────
+  recommendation-engine:
+    build:
+      context: ../services/recommendation-engine
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-recommend
+    ports:
+      - "8004:8004"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - PORT=8004
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aicaffe-net
+
+  # ── News Aggregator ─────────────────────────────────────────────
+  news-aggregator:
+    build:
+      context: ../services/news-aggregator
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-news
+    ports:
+      - "8005:8005"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - PORT=8005
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aicaffe-net
+
+  # ── AI Proxy Service ────────────────────────────────────────────
+  ai-proxy-service:
+    build:
+      context: ../services/ai-proxy-service
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-aiproxy
+    ports:
+      - "8006:8006"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - TOKEN_SERVICE_URL=http://token-service:8003
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - MISTRAL_API_KEY=${MISTRAL_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - TOGETHER_API_KEY=${TOGETHER_API_KEY:-}
+      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
+      - PORT=8006
+    depends_on:
+      postgres:
+        condition: service_healthy
+      token-service:
+        condition: service_started
+    networks:
+      - aicaffe-net
+
+  # ── Billing Service ─────────────────────────────────────────────
+  billing-service:
+    build:
+      context: ../services/billing-service
+      dockerfile: ../../docker/Dockerfile.python
+    container_name: aicaffe-billing
+    ports:
+      - "8007:8007"
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=aicaffe
+      - DB_PASSWORD=aicaffe_pass
+      - DB_NAME=aicaffe
+      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY:-}
+      - PORT=8007
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aicaffe-net
+
+  # ── Frontend ─────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: aicaffe-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    depends_on:
+      - api-gateway
+    networks:
+      - aicaffe-net
+
+  # ── PgAdmin (Development) ───────────────────────────────────────
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: aicaffe-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@aicaffe.ai
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    networks:
+      - aicaffe-net
+    profiles:
+      - dev
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  aicaffe-net:
+    driver: bridge

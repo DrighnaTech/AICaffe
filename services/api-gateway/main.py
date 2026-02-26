@@ -4,9 +4,10 @@ Handles authentication, request routing, and user context injection
 """
 from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import httpx
+import json
 import os
 import time
 import uuid
@@ -89,11 +90,15 @@ async def get_current_user(request: Request) -> Optional[dict]:
     token = auth_header.split(" ")[1]
     return decode_token(token)
 
+def ac_error(status: int, code: str, message: str) -> HTTPException:
+    """Standardized AiCaffe error format: {"error": {"code": "AC_xxx", "message": "..."}}"""
+    return HTTPException(status_code=status, detail={"error": {"code": code, "message": message}})
+
 async def require_auth(request: Request) -> dict:
-    """Require authentication - raises 401 if not authenticated"""
+    """Require authentication - raises AC_401 if not authenticated"""
     user = await get_current_user(request)
     if not user:
-        raise HTTPException(status_code=401, detail="Authentication required")
+        raise ac_error(401, "AC_401", "Authentication required. Please login.")
     return user
 
 async def get_user_id_from_request(request: Request) -> Optional[str]:
@@ -175,11 +180,11 @@ async def proxy_request(
             content = {"data": response.text}
         return JSONResponse(status_code=response.status_code, content=content)
     except httpx.ConnectError:
-        raise HTTPException(status_code=503, detail=f"Service '{service}' is unavailable")
+        raise ac_error(503, "AC_503", f"Service '{service}' is unavailable. Please try again shortly.")
     except Exception as e:
         import traceback
         print(f"Gateway proxy error: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ac_error(500, "AC_500", str(e))
 
 # ── Health & Info ──────────────────────────────────────────────────
 
@@ -335,6 +340,40 @@ async def assistant_proxy(request: Request, path: str):
         request, "ai-proxy", f"/api/v1/assistant/{path}",
         inject_user_id=True,
         require_authentication=True
+    )
+
+@app.post("/api/v1/chat/stream")
+async def chat_stream_proxy(request: Request):
+    """
+    SSE streaming chat proxy.
+    Streams the ai-proxy response directly to the client without buffering.
+    """
+    user = await require_auth(request)
+    user_id = user.get("sub")
+
+    url = f"{SERVICES['ai-proxy']}/api/v1/chat/stream"
+    headers = dict(request.headers)
+    headers.pop("host", None)
+    headers["X-User-ID"] = user_id or ""
+    headers["X-User-Email"] = user.get("email", "")
+    headers["X-User-Role"] = user.get("role", "user")
+    body = await request.body()
+
+    async def stream_generator():
+        try:
+            async with httpx.AsyncClient(timeout=None) as client:
+                async with client.stream("POST", url, headers=headers, content=body) as resp:
+                    async for chunk in resp.aiter_bytes():
+                        yield chunk
+        except Exception as e:
+            error = {"error": {"code": "AC_503", "message": f"Streaming proxy error: {str(e)[:200]}"}}
+            yield f"data: {json.dumps(error)}\n\n".encode()
+            yield b"data: [DONE]\n\n"
+
+    return StreamingResponse(
+        stream_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 @app.api_route("/api/v1/chat/{path:path}", methods=["POST"])

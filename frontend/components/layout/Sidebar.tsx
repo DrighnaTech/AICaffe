@@ -4,10 +4,11 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Bot, GitCompare, Sparkles, Newspaper, MessageSquare,
+  LayoutDashboard, Bot, GitCompare, Sparkles, MessageSquare,
   Coins, BarChart3, Settings, ChevronLeft, ChevronRight, Coffee,
-  Trophy, CreditCard, Users, BookOpen, Search, Cloud, Key, Shield, Layers,
-  Zap, Wand2, Code2
+  Search, Key, Shield, Layers,
+  Zap, Wand2, Code2, FlaskConical, PenTool, BarChart2, Rocket,
+  BookOpen
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWalletStore, useAuthStore } from '@/lib/store'
@@ -16,15 +17,20 @@ import { formatNumber, tokensToUsd, formatCurrency } from '@/lib/utils'
 // Consumer-focused navigation (regular users)
 const CONSUMER_NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { type: 'divider' },
+  { type: 'section', label: 'Workshops' },
+  { label: 'Code Studio', href: '/workshops/code', icon: Code2 },
+  { label: 'Research Lab', href: '/workshops/research', icon: FlaskConical },
+  { label: 'Content Forge', href: '/workshops/content', icon: PenTool },
+  { label: 'Data Analyst', href: '/workshops/data', icon: BarChart2 },
+  { label: 'App Builder', href: '/workshops/app-builder', icon: Rocket },
+  { type: 'divider' },
   { label: 'AI Hub', href: '/ai-hub', icon: Zap },
   { label: 'Smart Query', href: '/smart-query', icon: Sparkles },
   { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
   { type: 'divider' },
   { label: 'Explore Models', href: '/models', icon: Bot },
-  { label: 'Recommendations', href: '/recommendations', icon: Sparkles },
-  { type: 'divider' },
-  { label: 'My Storage', href: '/storage', icon: Cloud },
-  { label: 'News', href: '/news', icon: Newspaper },
+  { label: 'Recommendations', href: '/recommendations', icon: BookOpen },
   { type: 'divider' },
   { label: 'Tokens', href: '/tokens', icon: Coins },
   { label: 'Settings', href: '/settings', icon: Settings },
@@ -33,19 +39,23 @@ const CONSUMER_NAV_ITEMS = [
 // Admin/Developer navigation (full access)
 const ADMIN_NAV_ITEMS = [
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { type: 'divider' },
+  { type: 'section', label: 'Workshops' },
+  { label: 'Code Studio', href: '/workshops/code', icon: Code2 },
+  { label: 'Research Lab', href: '/workshops/research', icon: FlaskConical },
+  { label: 'Content Forge', href: '/workshops/content', icon: PenTool },
+  { label: 'Data Analyst', href: '/workshops/data', icon: BarChart2 },
+  { label: 'App Builder', href: '/workshops/app-builder', icon: Rocket },
+  { type: 'divider' },
   { label: 'AI Hub', href: '/ai-hub', icon: Zap },
   { label: 'Smart Query', href: '/smart-query', icon: Sparkles },
   { label: 'Agent Builder', href: '/agents', icon: Wand2 },
   { label: 'AI Workspace', href: '/workspace', icon: Layers },
-  { label: 'Codespace', href: '/codespace', icon: Code2 },
+  { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
   { type: 'divider' },
   { label: 'Models', href: '/models', icon: Bot },
   { label: 'Compare', href: '/compare', icon: GitCompare },
-  { label: 'Recommend', href: '/recommendations', icon: Sparkles },
-  { type: 'divider' },
-  { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
-  { label: 'CaffeSpace', href: '/storage', icon: Cloud },
-  { label: 'News Feed', href: '/news', icon: Newspaper },
+  { label: 'Recommendations', href: '/recommendations', icon: BookOpen },
   { type: 'divider' },
   { label: 'Tokens', href: '/tokens', icon: Coins },
   { label: 'Usage', href: '/billing', icon: BarChart3 },
@@ -101,6 +111,16 @@ export function Sidebar() {
         {navItems.map((item, i) => {
           if (item.type === 'divider') {
             return <div key={i} className="my-2 border-t border-gray-800/50" />
+          }
+          if (item.type === 'section') {
+            if (collapsed) return null
+            return (
+              <div key={i} className="px-3 pt-2 pb-1">
+                <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                  {item.label}
+                </span>
+              </div>
+            )
           }
           const isActive = pathname === item.href || pathname?.startsWith(item.href + '/')
           return (

@@ -23,45 +23,57 @@ import type { AIModel } from '@/lib/types'
 const mockModels: AIModel[] = [
   {
     id: '1', name: 'GPT-4o', slug: 'gpt-4o', provider_id: '1', provider_name: 'OpenAI',
-    model_type: 'llm', description: 'Most capable GPT-4 model', input_token_cost_per_million: 5,
-    output_token_cost_per_million: 15, context_window: 128000, is_available: true, is_featured: true,
-    avg_latency_ms: 1200, capabilities: ['chat', 'vision', 'function_calling'], benchmarks: { mmlu: 88.7 },
-    created_at: '2024-01-01', updated_at: '2024-12-01'
+    model_identifier: 'gpt-4o', model_type: 'llm', description: 'Most capable GPT-4 model',
+    input_price_per_million: 5, output_price_per_million: 15, context_window: 128000,
+    is_available: true, is_featured: true, is_open_source: false,
+    avg_latency_ms: 1200, capabilities: { text: true, vision: true, function_calling: true },
+    benchmarks: { mmlu: 88.7 }, avg_rating: 4.5, total_ratings: 120, total_api_calls: 50000,
+    uptime_percentage: 99.9, status: 'active',
   },
   {
     id: '2', name: 'Claude 3.5 Sonnet', slug: 'claude-3-5-sonnet', provider_id: '2', provider_name: 'Anthropic',
-    model_type: 'llm', description: 'Best balance of speed and capability', input_token_cost_per_million: 3,
-    output_token_cost_per_million: 15, context_window: 200000, is_available: true, is_featured: true,
-    avg_latency_ms: 800, capabilities: ['chat', 'vision', 'code'], benchmarks: { mmlu: 89.0 },
-    created_at: '2024-01-01', updated_at: '2024-12-01'
+    model_identifier: 'claude-3-5-sonnet-20241022', model_type: 'llm', description: 'Best balance of speed and capability',
+    input_price_per_million: 3, output_price_per_million: 15, context_window: 200000,
+    is_available: true, is_featured: true, is_open_source: false,
+    avg_latency_ms: 800, capabilities: { text: true, vision: true, code: true },
+    benchmarks: { mmlu: 89.0 }, avg_rating: 4.7, total_ratings: 200, total_api_calls: 80000,
+    uptime_percentage: 99.8, status: 'active',
   },
   {
     id: '3', name: 'DALL-E 3', slug: 'dall-e-3', provider_id: '1', provider_name: 'OpenAI',
-    model_type: 'image', description: 'Best image generation', input_token_cost_per_million: 0,
-    output_token_cost_per_million: 0, context_window: 0, is_available: true, is_featured: true,
-    avg_latency_ms: 15000, capabilities: ['image_generation'], benchmarks: {},
-    created_at: '2024-01-01', updated_at: '2024-12-01'
+    model_identifier: 'dall-e-3', model_type: 'image_generation', description: 'Best image generation',
+    input_price_per_million: 0, output_price_per_million: 0, context_window: 0,
+    is_available: true, is_featured: true, is_open_source: false,
+    avg_latency_ms: 15000, capabilities: { text: true },
+    benchmarks: {}, avg_rating: 4.3, total_ratings: 90, total_api_calls: 30000,
+    uptime_percentage: 99.5, status: 'active',
   },
   {
     id: '4', name: 'Gemini 2.0 Pro', slug: 'gemini-2-pro', provider_id: '3', provider_name: 'Google',
-    model_type: 'llm', description: 'Google\'s most capable model', input_token_cost_per_million: 2.5,
-    output_token_cost_per_million: 10, context_window: 1000000, is_available: true, is_featured: false,
-    avg_latency_ms: 600, capabilities: ['chat', 'vision', 'code'], benchmarks: { mmlu: 87.5 },
-    created_at: '2024-01-01', updated_at: '2024-12-01'
+    model_identifier: 'gemini-2.0-pro', model_type: 'llm', description: 'Google\'s most capable model',
+    input_price_per_million: 2.5, output_price_per_million: 10, context_window: 1000000,
+    is_available: true, is_featured: false, is_open_source: false,
+    avg_latency_ms: 600, capabilities: { text: true, vision: true, code: true },
+    benchmarks: { mmlu: 87.5 }, avg_rating: 4.4, total_ratings: 150, total_api_calls: 60000,
+    uptime_percentage: 99.7, status: 'active',
   },
   {
     id: '5', name: 'Llama 3.3 70B', slug: 'llama-3-3-70b', provider_id: '4', provider_name: 'Meta',
-    model_type: 'llm', description: 'Open source powerhouse', input_token_cost_per_million: 0.8,
-    output_token_cost_per_million: 0.8, context_window: 128000, is_available: true, is_featured: false,
-    avg_latency_ms: 400, capabilities: ['chat', 'code'], benchmarks: { mmlu: 83.0 },
-    created_at: '2024-01-01', updated_at: '2024-12-01'
+    model_identifier: 'llama-3.3-70b', model_type: 'llm', description: 'Open source powerhouse',
+    input_price_per_million: 0.8, output_price_per_million: 0.8, context_window: 128000,
+    is_available: true, is_featured: false, is_open_source: true,
+    avg_latency_ms: 400, capabilities: { text: true, code: true },
+    benchmarks: { mmlu: 83.0 }, avg_rating: 4.1, total_ratings: 80, total_api_calls: 40000,
+    uptime_percentage: 99.6, status: 'active',
   },
   {
     id: '6', name: 'ElevenLabs TTS', slug: 'elevenlabs-tts', provider_id: '5', provider_name: 'ElevenLabs',
-    model_type: 'audio', description: 'Best text-to-speech', input_token_cost_per_million: 0,
-    output_token_cost_per_million: 0, context_window: 0, is_available: true, is_featured: true,
-    avg_latency_ms: 500, capabilities: ['text_to_speech'], benchmarks: {},
-    created_at: '2024-01-01', updated_at: '2024-12-01'
+    model_identifier: 'eleven-multilingual-v2', model_type: 'text_to_speech', description: 'Best text-to-speech',
+    input_price_per_million: 0, output_price_per_million: 0, context_window: 0,
+    is_available: true, is_featured: true, is_open_source: false,
+    avg_latency_ms: 500, capabilities: { text: true, audio: true },
+    benchmarks: {}, avg_rating: 4.6, total_ratings: 70, total_api_calls: 20000,
+    uptime_percentage: 99.4, status: 'active',
   },
 ]
 
@@ -83,7 +95,8 @@ export default function AdminModelsPage() {
     }
   })
 
-  const models: any[] = Array.isArray(modelsData?.data) ? modelsData.data : (modelsData?.data?.models || modelsData?.data?.items || [])
+  const modelsRaw = modelsData?.data as any
+  const models: AIModel[] = Array.isArray(modelsRaw) ? modelsRaw : (modelsRaw?.models || modelsRaw?.items || modelsRaw?.data || [])
 
   // Filter models
   const filteredModels = models.filter(model => {
@@ -119,7 +132,7 @@ export default function AdminModelsPage() {
     updateModelMutation.mutate({ id: model.id, updates: { is_featured: !model.is_featured } })
   }
 
-  const providers = [...new Set(models.map(m => m.provider_name))]
+  const providers = Array.from(new Set(models.map(m => m.provider_name)))
   const totalPages = Math.ceil(filteredModels.length / itemsPerPage)
   const paginatedModels = filteredModels.slice(
     (currentPage - 1) * itemsPerPage,
@@ -129,9 +142,9 @@ export default function AdminModelsPage() {
   const getTypeColor = (type: string) => {
     switch (type) {
       case 'llm': return 'violet'
-      case 'image': return 'pink'
-      case 'audio': return 'cyan'
-      case 'video': return 'orange'
+      case 'image_generation': return 'pink'
+      case 'text_to_speech': case 'audio_generation': case 'audio_transcription': return 'cyan'
+      case 'video_generation': return 'orange'
       case 'embedding': return 'emerald'
       default: return 'gray'
     }
@@ -307,8 +320,8 @@ export default function AdminModelsPage() {
                   </td>
                   <td className="px-6 py-4">
                     <div className="text-sm">
-                      <p className="text-emerald-400">In: ${model.input_token_cost_per_million}</p>
-                      <p className="text-orange-400">Out: ${model.output_token_cost_per_million}</p>
+                      <p className="text-emerald-400">In: ${model.input_price_per_million}</p>
+                      <p className="text-orange-400">Out: ${model.output_price_per_million}</p>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -426,15 +439,15 @@ export default function AdminModelsPage() {
               <Input
                 label="Input Cost (per 1M tokens)"
                 type="number"
-                value={String(selectedModel.input_token_cost_per_million)}
-                onChange={(e) => setSelectedModel({ ...selectedModel, input_token_cost_per_million: parseFloat(e.target.value) })}
+                value={String(selectedModel.input_price_per_million ?? 0)}
+                onChange={(e) => setSelectedModel({ ...selectedModel, input_price_per_million: parseFloat(e.target.value) })}
                 leftIcon={<DollarSign className="w-4 h-4" />}
               />
               <Input
                 label="Output Cost (per 1M tokens)"
                 type="number"
-                value={String(selectedModel.output_token_cost_per_million)}
-                onChange={(e) => setSelectedModel({ ...selectedModel, output_token_cost_per_million: parseFloat(e.target.value) })}
+                value={String(selectedModel.output_price_per_million ?? 0)}
+                onChange={(e) => setSelectedModel({ ...selectedModel, output_price_per_million: parseFloat(e.target.value) })}
                 leftIcon={<DollarSign className="w-4 h-4" />}
               />
             </div>

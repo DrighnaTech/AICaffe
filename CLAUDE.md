@@ -3,7 +3,7 @@
 
 **Generated:** February 26, 2026
 **Purpose:** This document synthesizes all 12 AiCaffe project documents into a single reference for Claude Code to use during development and solutioning.
-**Source Documents:** Strategic Product Doc, Product Vision, Solution Architecture, System Design, Database & Code Structure, Code & File Structure, Algorithms & Data Structures, Smart Routing & Workshop Solutioning, Idea-to-Deployment Pipeline (x2), Cursor Comparative Analysis, Free AI API Providers spreadsheet.
+**Source Documents:** Strategic Product Doc, Product Vision, Solution Architecture, System Design, Database & Code Structure, Code & File Structure, Algorithms & Data Structures, Smart Routing & Workshop Solutioning, Idea-to-Deployment Pipeline (x2), Cursor Comparative Analysis, Free AI API Providers spreadsheet, Swarm Intelligence Orchestration.
 
 ---
 
@@ -340,6 +340,81 @@ Build in this order:
 - No magic numbers (`config/constants.ts`)
 - Pino structured JSON logging with requestId
 - Git: `feature/`, `bugfix/`, `hotfix/` branches; conventional commits
+
+---
+
+## 18. SWARM INTELLIGENCE ORCHESTRATION (Flagship Capability)
+
+AiCaffe's most ambitious feature: when a user gives a single prompt, the system breaks it into sub-tasks, selects the **best AI model AND best tool** for each sub-task, executes them in parallel where possible, shares context between all of them, and delivers a result better than any single model could produce alone.
+
+**One-line:** "10 specialist doctors instead of one — they each diagnose independently, debate, and give one answer."
+
+### 5-Step Pipeline
+1. **User prompt** → "Build me a food delivery app with real-time tracking"
+2. **Brain decomposes** → DAG of sub-tasks with dependencies + parallelism
+3. **Dual routing** → For each sub-task: best MODEL (think) + best TOOL (execute)
+4. **Shared context** → Universal `.aicaffe/context.md` every model reads & updates
+5. **Cross-model verification** → The model that writes is NEVER the model that reviews
+
+### 5 Core Components
+
+**Component 1: Task Decomposer**
+- Breaks prompt into DAG (Directed Acyclic Graph) with task types: research, backend, frontend, logic, testing, devops, design, documentation
+- Identifies dependencies (frontend waits for API) and parallelism (research + DB design run simultaneously)
+
+**Component 2: Model + Tool Router (Dual Routing)**
+| Sub-Task | Best Model | Best Tool |
+|----------|-----------|-----------|
+| Research & analysis | Perplexity / Gemini Pro | Browser |
+| System design | Claude Opus | Claude Code |
+| Backend code | DeepSeek / Claude Sonnet | Cursor |
+| Frontend code | GPT-4o / Claude Sonnet | v0.dev / Cursor |
+| Logic & algorithms | Claude Opus / DeepSeek R1 | Claude Code |
+| Testing & QA | Gemini Flash | Terminal (Jest) |
+| DevOps & config | Llama 3.3 / Groq | Terminal (Docker) |
+| Database design | Claude Sonnet | Terminal (Prisma) |
+| UI/UX design | GPT-4o | Figma API / v0.dev |
+
+Router learns over time — if DeepSeek produces buggy React but Claude doesn't, preferences auto-adjust.
+
+**Component 3: Shared Context System (`.aicaffe/` directory)**
+```
+.aicaffe/
+├── context.md      ← Master context: project desc, status, decisions, contracts
+├── decisions.md    ← Every architectural decision
+├── task-graph.json ← Current state of all tasks
+├── schemas/        ← Generated DB/API/type schemas
+└── handoff/        ← Files passed between models
+```
+**Read-Update Cycle:** READ context → EXECUTE with tool → UPDATE context → HANDOFF to next task.
+
+**Component 4: Tool Bridge (Standardized Connectors)**
+- Interface: `initialize(projectPath, context)` → `execute(instruction, files)` → `collect()` (output, logs, errors)
+- Connectors: Terminal, Claude Code, Browser, Cursor, GitHub, Docker, v0.dev, Figma, Vercel, Railway
+
+**Component 5: Verification Layer (Write-Review-Test Triangle)**
+- **Writer** (code-optimized, e.g., DeepSeek): Focuses on functionality
+- **Reviewer** (reasoning-optimized, e.g., Claude): Fresh eyes — catches logic & security issues
+- **Tester** (fast analytical, e.g., Gemini Flash): Runs real tests — catches runtime issues
+- Loop until all pass. This three-model verification is AiCaffe's single biggest quality advantage.
+
+### Multi-Model Consensus Engine
+For critical decisions (architecture, security, production deploys):
+1. Same question sent to 3-5 models simultaneously (independently, can't see others)
+2. Merger model identifies: agreements (high confidence), disagreements (investigate), unique insights
+3. Output: synthesized answer + confidence score + transparency report
+
+### Competitive Moats
+- **Data moat:** Every task generates proprietary data on optimal model+tool combos → routing gets smarter with every user
+- **Network effect:** More connectors → more users → more data → better routing
+- **Switching cost:** Projects, context, decisions accumulated in AiCaffe
+- **Speed:** Parallel execution completes complex projects faster than sequential tools
+- **Quality:** Write-review-test triangle produces output no single model matches
+
+### Implementation Roadmap
+- **Phase 1 (Months 1-3):** Orchestrator Brain, static Model Router (10+ models), Terminal/Browser/Claude Code connectors, context system, sequential execution, Idea-to-Deployment as first use case
+- **Phase 2 (Months 4-6):** Parallel execution, Verification Layer, Cursor/GitHub/Docker/v0.dev connectors, dynamic scoring, Consensus Engine, real-time progress dashboard
+- **Phase 3 (Months 7-12):** Figma/Vercel/Railway/AWS/GCP connectors, A/B routing, adaptive learning, multi-model Workshop tasks, project templates, open Tool Bridge API for third parties
 
 ---
 

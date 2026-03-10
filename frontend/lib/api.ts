@@ -83,6 +83,17 @@ export const assistantApi = {
   getConversation: (id: string) => api.get(`/assistant/conversations/${id}`),
   createConversation: (data: any) => api.post('/assistant/conversations', data),
   deleteConversation: (id: string) => api.delete(`/assistant/conversations/${id}`),
+  saveMessages: (conversationId: string, data: {
+    user_content: string
+    assistant_content: string
+    model_id: string
+    input_tokens?: number
+    output_tokens?: number
+    aicaffe_tokens_charged?: number
+    latency_ms?: number
+  }) => api.post(`/assistant/conversations/${conversationId}/messages`, data),
+  updateTitle: (conversationId: string, title: string) =>
+    api.put(`/assistant/conversations/${conversationId}/title`, null, { params: { title } }),
   switchModel: (conversationId: string, modelId: string) =>
     api.put(`/assistant/conversations/${conversationId}/model`, null, { params: { model_id: modelId } }),
   chat: (data: any) => api.post('/chat/completions', data),
@@ -199,17 +210,18 @@ export const orchestratorApi = {
     query: string;
     task_type?: TaskType;
     agents?: AgentRole[];
-    context?: Record<string, any>;
     max_iterations?: number;
     quality_threshold?: number;
+    preferences?: Record<string, any>;
   }) => api.post('/orchestrate', data),
 
   // Smart query - auto-determines best approach
   smartQuery: (data: {
     query: string;
-    context?: Record<string, any>;
+    context?: string;
     prefer_speed?: boolean;
     prefer_quality?: boolean;
+    preferences?: Record<string, any>;
   }) => api.post('/smart-query', data),
 
   // Custom multi-agent workflows

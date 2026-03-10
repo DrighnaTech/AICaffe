@@ -34,10 +34,13 @@ DB_CONFIG = {
 AI_PROXY_URL = os.getenv("AI_PROXY_URL", "http://localhost:8006")
 WORKSPACE_SERVICE_URL = os.getenv("WORKSPACE_SERVICE_URL", "http://localhost:8009")
 
-# Orchestrator models (best for reasoning and coordination)
-ORCHESTRATOR_MODEL = "claude-3-5-sonnet-20241022"
-SYNTHESIS_MODEL = "claude-3-5-sonnet-20241022"
-FAST_MODEL = "gpt-4o-mini"
+# Orchestrator models — use free-tier providers
+ORCHESTRATOR_MODEL = "llama-3.3-70b-versatile"   # Groq — fast + capable
+SYNTHESIS_MODEL = "llama-3.3-70b-versatile"       # Groq
+FAST_MODEL = "llama-3.1-8b-instant"               # Groq — fast for analysis
+
+# Cache for model identifier → DB UUID resolution
+_model_id_cache: Dict[str, str] = {}
 
 # ── Database ──────────────────────────────────────────────────────────────────
 
@@ -82,6 +85,7 @@ class OrchestrateRequest(BaseModel):
     quality_threshold: float = Field(default=0.7, ge=0, le=1, description="Minimum quality score")
     include_reasoning: bool = Field(default=True, description="Include reasoning in response")
     timeout_seconds: int = Field(default=120, ge=10, le=300)
+    preferences: Optional[Dict[str, Any]] = Field(default=None, description="User preferences e.g. model_override")
 
 class AgentResponse(BaseModel):
     """Individual agent's response"""
@@ -140,7 +144,7 @@ EXPERT_AGENTS = {
 - Identify gaps in knowledge
 - Present multiple perspectives
 Be thorough but concise. Focus on facts over opinions.""",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": ["web_search", "document_reader"]
     },
     "analyst": {
@@ -151,7 +155,7 @@ Be thorough but concise. Focus on facts over opinions.""",
 - Provide data-driven recommendations
 - Consider risks and trade-offs
 Be analytical and structured in your reasoning.""",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": ["code_interpreter", "calculator"]
     },
     "writer": {
@@ -162,7 +166,7 @@ Be analytical and structured in your reasoning.""",
 - Structure information effectively
 - Make complex topics accessible
 Focus on clarity and impact.""",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": []
     },
     "critic": {
@@ -173,7 +177,7 @@ Focus on clarity and impact.""",
 - Suggest improvements
 - Ensure quality and accuracy
 Be constructive but thorough in your critique.""",
-        "model": "gpt-4o",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": []
     },
     "synthesizer": {
@@ -184,7 +188,7 @@ Be constructive but thorough in your critique.""",
 - Resolve contradictions
 - Create unified, actionable outputs
 Focus on creating value from diverse inputs.""",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": []
     },
     "fact_checker": {
@@ -195,7 +199,7 @@ Focus on creating value from diverse inputs.""",
 - Provide corrections with sources
 - Rate confidence in factual accuracy
 Be rigorous and cite evidence.""",
-        "model": "gpt-4o",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": ["web_search"]
     },
     "creative": {
@@ -206,7 +210,7 @@ Be rigorous and cite evidence.""",
 - Provide unique perspectives
 - Suggest creative solutions
 Be bold and imaginative.""",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": ["image_generation"]
     },
     "technical": {
@@ -217,7 +221,7 @@ Be bold and imaginative.""",
 - Explain complex concepts clearly
 - Suggest best practices
 Be precise and thorough.""",
-        "model": "claude-3-5-sonnet-20241022",
+        "model": "llama-3.3-70b-versatile",
         "capabilities": ["code_interpreter"]
     }
 }
@@ -235,25 +239,52 @@ class OrchestratorEngine:
             self.http_client = httpx.AsyncClient(timeout=120.0)
         return self.http_client
 
+    async def resolve_model_id(self, model_identifier: str) -> str:
+        """Resolve a model identifier (e.g. 'llama-3.3-70b-versatile') to its DB UUID"""
+        if model_identifier in _model_id_cache:
+            return _model_id_cache[model_identifier]
+        db = await get_pool()
+        async with db.acquire() as conn:
+            row = await conn.fetchrow(
+                "SELECT id FROM ai_models WHERE model_identifier = $1 AND status = 'active' LIMIT 1",
+                model_identifier
+            )
+            if row:
+                _model_id_cache[model_identifier] = str(row["id"])
+                return _model_id_cache[model_identifier]
+        # If not found, return as-is (maybe it's already a UUID)
+        return model_identifier
+
     async def call_ai(self, model: str, messages: List[Dict], user_id: str, **kwargs) -> Dict:
         """Call AI model via proxy"""
         client = await self.get_client()
+        model_id = await self.resolve_model_id(model)
+        # Remove non-API fields from kwargs
+        safe_kwargs = {k: v for k, v in kwargs.items() if k in ("temperature", "max_tokens", "tools")}
         try:
             response = await client.post(
                 f"{AI_PROXY_URL}/api/v1/chat/completions",
                 json={
-                    "model": model,
-                    "messages": messages,
-                    "user_id": user_id,
-                    **kwargs
+                    "model_id": model_id,
+                    "messages": [{"role": m["role"], "content": m["content"]} for m in messages],
+                    **safe_kwargs
                 },
                 headers={"X-User-ID": user_id}
             )
             if response.status_code == 200:
                 return response.json()
             else:
-                raise HTTPException(status_code=response.status_code, detail="AI call failed")
+                error_detail = "AI call failed"
+                try:
+                    error_detail = response.json().get("detail", response.text[:200])
+                except Exception:
+                    error_detail = response.text[:200]
+                print(f"[orchestrator] AI call failed ({response.status_code}): {error_detail}")
+                raise HTTPException(status_code=response.status_code, detail=f"AI call failed: {error_detail}")
+        except HTTPException:
+            raise
         except Exception as e:
+            print(f"[orchestrator] AI call exception: {e}")
             raise HTTPException(status_code=500, detail=str(e))
 
     async def analyze_query(self, query: str, user_id: str) -> Dict:

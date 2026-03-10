@@ -8,115 +8,107 @@ import {
   Coins, BarChart3, Settings, ChevronLeft, ChevronRight, Coffee,
   Search, Key, Shield, Layers,
   Zap, Wand2, Code2, FlaskConical, PenTool, BarChart2, Rocket,
-  BookOpen
+  BookOpen, Command
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useWalletStore, useAuthStore } from '@/lib/store'
 import { formatNumber, tokensToUsd, formatCurrency } from '@/lib/utils'
 
-// Consumer-focused navigation (regular users)
-const CONSUMER_NAV_ITEMS = [
+const CONSUMER_NAV = [
+  { type: 'section', label: 'Main' },
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { type: 'divider' },
+  { label: 'AI Hub', href: '/ai-hub', icon: Zap },
+  { label: 'Smart Query', href: '/smart-query', icon: Sparkles },
+  { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
   { type: 'section', label: 'Workshops' },
   { label: 'Code Studio', href: '/workshops/code', icon: Code2 },
   { label: 'Research Lab', href: '/workshops/research', icon: FlaskConical },
   { label: 'Content Forge', href: '/workshops/content', icon: PenTool },
   { label: 'Data Analyst', href: '/workshops/data', icon: BarChart2 },
   { label: 'App Builder', href: '/workshops/app-builder', icon: Rocket },
-  { type: 'divider' },
-  { label: 'AI Hub', href: '/ai-hub', icon: Zap },
-  { label: 'Smart Query', href: '/smart-query', icon: Sparkles },
-  { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
-  { type: 'divider' },
+  { type: 'section', label: 'Discover' },
   { label: 'Explore Models', href: '/models', icon: Bot },
   { label: 'Recommendations', href: '/recommendations', icon: BookOpen },
-  { type: 'divider' },
+  { type: 'section', label: 'Account' },
   { label: 'Tokens', href: '/tokens', icon: Coins },
   { label: 'Settings', href: '/settings', icon: Settings },
 ]
 
-// Admin/Developer navigation (full access)
-const ADMIN_NAV_ITEMS = [
+const ADMIN_NAV = [
+  { type: 'section', label: 'Main' },
   { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { type: 'divider' },
+  { label: 'AI Hub', href: '/ai-hub', icon: Zap },
+  { label: 'Smart Query', href: '/smart-query', icon: Sparkles },
+  { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
   { type: 'section', label: 'Workshops' },
   { label: 'Code Studio', href: '/workshops/code', icon: Code2 },
   { label: 'Research Lab', href: '/workshops/research', icon: FlaskConical },
   { label: 'Content Forge', href: '/workshops/content', icon: PenTool },
   { label: 'Data Analyst', href: '/workshops/data', icon: BarChart2 },
   { label: 'App Builder', href: '/workshops/app-builder', icon: Rocket },
-  { type: 'divider' },
-  { label: 'AI Hub', href: '/ai-hub', icon: Zap },
-  { label: 'Smart Query', href: '/smart-query', icon: Sparkles },
-  { label: 'Agent Builder', href: '/agents', icon: Wand2 },
-  { label: 'AI Workspace', href: '/workspace', icon: Layers },
-  { label: 'AI Assistant', href: '/assistant', icon: MessageSquare },
-  { type: 'divider' },
+  { type: 'section', label: 'Discover' },
   { label: 'Models', href: '/models', icon: Bot },
   { label: 'Compare', href: '/compare', icon: GitCompare },
   { label: 'Recommendations', href: '/recommendations', icon: BookOpen },
-  { type: 'divider' },
+  { type: 'section', label: 'Account' },
   { label: 'Tokens', href: '/tokens', icon: Coins },
   { label: 'Usage', href: '/billing', icon: BarChart3 },
-  { type: 'divider' },
   { label: 'API Keys', href: '/settings/api-keys', icon: Key },
   { label: 'Settings', href: '/settings', icon: Settings },
-  { type: 'divider' },
+  { type: 'section', label: 'Admin' },
   { label: 'Admin Panel', href: '/admin', icon: Shield },
+  { label: 'Agent Builder', href: '/agents', icon: Wand2 },
+  { label: 'AI Workspace', href: '/workspace', icon: Layers },
 ]
 
 export function Sidebar() {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
-  const { balance } = useWalletStore()
-  const { user } = useAuthStore()
+  const balance = useWalletStore((s) => s.balance)
+  const user = useAuthStore((s) => s.user)
 
   const isAdmin = user?.role === 'admin'
-  const navItems = isAdmin ? ADMIN_NAV_ITEMS : CONSUMER_NAV_ITEMS
+  const navItems = isAdmin ? ADMIN_NAV : CONSUMER_NAV
 
   return (
     <aside className={cn(
-      'h-screen bg-gray-950 border-r border-gray-800 flex flex-col transition-all duration-300',
-      collapsed ? 'w-16' : 'w-64'
+      'h-screen flex flex-col transition-all duration-300 border-r border-white/[0.04]',
+      'bg-surface-primary',
+      collapsed ? 'w-[60px]' : 'w-[240px]'
     )}>
       {/* Logo */}
-      <div className="h-16 flex items-center px-4 border-b border-gray-800">
-        <Link href="/dashboard" className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-violet-500 to-cyan-500 flex items-center justify-center">
-            <Coffee className="w-5 h-5 text-white" />
+      <div className="h-14 flex items-center px-4 border-b border-white/[0.04]">
+        <Link href="/dashboard" className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-lg bg-violet-600 flex items-center justify-center flex-shrink-0">
+            <Coffee className="w-4 h-4 text-white" />
           </div>
           {!collapsed && (
-            <span className="font-bold text-lg text-white">AICaffe</span>
+            <span className="font-semibold text-[15px] text-white tracking-tight">AICaffe</span>
           )}
         </Link>
       </div>
 
-      {/* Search */}
+      {/* Search / Command */}
       {!collapsed && (
-        <div className="px-3 py-3">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search models..."
-              className="w-full pl-9 pr-3 py-2 text-sm rounded-lg bg-gray-800/50 border border-gray-700 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-            />
-          </div>
+        <div className="px-3 pt-3 pb-1">
+          <button className="w-full flex items-center gap-2 px-3 py-[7px] rounded-button bg-white/[0.03] border border-white/[0.06] text-gray-500 hover:text-gray-400 hover:bg-white/[0.05] transition-all text-xs">
+            <Search className="w-3.5 h-3.5" />
+            <span className="flex-1 text-left">Search...</span>
+            <kbd className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-white/[0.06] text-[10px] text-gray-500 font-mono">
+              <Command className="w-2.5 h-2.5" />K
+            </kbd>
+          </button>
         </div>
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5">
+      <nav className="flex-1 overflow-y-auto px-2 py-2">
         {navItems.map((item, i) => {
-          if (item.type === 'divider') {
-            return <div key={i} className="my-2 border-t border-gray-800/50" />
-          }
           if (item.type === 'section') {
-            if (collapsed) return null
+            if (collapsed) return <div key={i} className="my-2" />
             return (
-              <div key={i} className="px-3 pt-2 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+              <div key={i} className={cn('px-3 pt-4 pb-1.5', i === 0 && 'pt-1')}>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.08em] text-gray-600">
                   {item.label}
                 </span>
               </div>
@@ -128,14 +120,23 @@ export function Sidebar() {
               key={item.label}
               href={item.href!}
               className={cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-all',
+                'relative flex items-center gap-2.5 px-2.5 py-[7px] rounded-lg text-[13px] transition-all duration-150 group my-[1px]',
                 isActive
-                  ? 'bg-violet-500/10 text-violet-400 font-medium'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+                  ? 'text-white bg-white/[0.06]'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-white/[0.03]'
               )}
             >
-              <item.icon className={cn('w-5 h-5 flex-shrink-0', isActive && 'text-violet-400')} />
-              {!collapsed && <span>{item.label}</span>}
+              {/* Active accent bar */}
+              {isActive && (
+                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-4 rounded-r-full bg-violet-500" />
+              )}
+              <item.icon className={cn(
+                'w-4 h-4 flex-shrink-0 transition-colors',
+                isActive ? 'text-violet-400' : 'text-gray-600 group-hover:text-gray-400'
+              )} />
+              {!collapsed && (
+                <span className={cn(isActive && 'font-medium')}>{item.label}</span>
+              )}
             </Link>
           )
         })}
@@ -143,30 +144,30 @@ export function Sidebar() {
 
       {/* Token Balance Widget */}
       {!collapsed && (
-        <div className="mx-3 mb-3 p-3 bg-gradient-to-br from-violet-500/10 to-cyan-500/10 rounded-xl border border-gray-800">
+        <div className="mx-3 mb-3 p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-gray-400">Token Balance</span>
-            <Coins className="w-4 h-4 text-violet-400" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-600">Balance</span>
+            <Coins className="w-3.5 h-3.5 text-violet-400" />
           </div>
-          <div className="text-lg font-bold text-white">
-            {formatNumber(balance)} <span className="text-xs text-gray-400">ACT</span>
+          <div className="text-base font-semibold text-white tracking-tight">
+            {formatNumber(balance)} <span className="text-[10px] text-gray-500 font-normal">ACT</span>
           </div>
-          <div className="text-xs text-gray-500">≈ {formatCurrency(tokensToUsd(balance))}</div>
+          <div className="text-[11px] text-gray-600 mt-0.5">{formatCurrency(tokensToUsd(balance))}</div>
           <Link
             href="/tokens"
-            className="w-full mt-2 py-1.5 text-xs text-center block bg-gradient-to-r from-violet-600 to-cyan-600 rounded-lg text-white font-medium hover:from-violet-500 hover:to-cyan-500 transition-all"
+            className="w-full mt-2.5 py-1.5 text-[11px] text-center block bg-violet-600 hover:bg-violet-500 rounded-button text-white font-medium transition-colors"
           >
             Buy Tokens
           </Link>
         </div>
       )}
 
-      {/* Collapse Button */}
+      {/* Collapse */}
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="h-10 flex items-center justify-center border-t border-gray-800 text-gray-500 hover:text-white transition-colors"
+        className="h-10 flex items-center justify-center border-t border-white/[0.04] text-gray-600 hover:text-gray-400 transition-colors"
       >
-        {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
       </button>
     </aside>
   )

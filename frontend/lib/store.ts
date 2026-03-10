@@ -95,8 +95,8 @@ interface WalletState {
 }
 
 export const useWalletStore = create<WalletState>((set) => ({
-  balance: 10000,
-  totalPurchased: 10000,
+  balance: 0,
+  totalPurchased: 0,
   totalConsumed: 0,
   setBalance: (balance) => set({ balance }),
   deduct: (amount) => set((state) => ({

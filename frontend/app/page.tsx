@@ -71,6 +71,24 @@ export default function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto space-y-16">
+      {/* Navigation Header */}
+      <nav className="flex items-center justify-between py-4 -mb-8">
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center">
+            <Cpu className="w-5 h-5 text-white" />
+          </div>
+          <span className="text-xl font-bold text-white">AiCaffe</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <Link href="/login" className="btn-ghost text-sm px-5 py-2 border border-gray-700 rounded-xl hover:border-purple-500 transition-colors">
+            Log In
+          </Link>
+          <Link href="/register" className="btn-primary text-sm px-5 py-2 rounded-xl flex items-center gap-2">
+            Sign Up Free <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+      </nav>
+
       {/* Hero */}
       <section className="text-center py-12 space-y-6">
         <div className="inline-flex items-center gap-2 badge-purple px-4 py-1.5 text-sm">
@@ -95,11 +113,11 @@ export default function HomePage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
-          <button className="btn-primary absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 rounded-xl">
+          <Link href="/login" className="btn-primary absolute right-2 top-1/2 -translate-y-1/2 px-6 py-2.5 rounded-xl">
             <span className="flex items-center gap-2">
-              Find Models <ArrowRight className="w-4 h-4" />
+              Get Started <ArrowRight className="w-4 h-4" />
             </span>
-          </button>
+          </Link>
         </div>
 
         {/* Quick Links */}
@@ -220,7 +238,7 @@ export default function HomePage() {
             <div className="text-lg font-bold text-white">10,000 ACT</div>
           </div>
         </div>
-        <Link href="/tokens" className="btn-primary px-8 py-3 text-lg inline-flex items-center gap-2">
+        <Link href="/register" className="btn-primary px-8 py-3 text-lg inline-flex items-center gap-2">
           <Zap className="w-5 h-5" /> Get Started Free
         </Link>
       </section>

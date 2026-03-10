@@ -563,14 +563,9 @@ async def chat_completion(
                 error_status = e.response.status_code if isinstance(e, httpx.HTTPStatusError) else 502
                 print(f"[ai-proxy] Provider {used_model['provider_slug']} failed (attempt {attempt + 1}): {e}")
 
-                # Don't fallback on non-retryable client errors
-                if isinstance(e, httpx.HTTPStatusError) and 400 <= error_status < 500 and error_status != 429:
-                    await conn.execute(
-                        """INSERT INTO api_calls (id, user_id, model_id, request_type, status_code, error_message, status)
-                           VALUES ($1, $2, $3, 'chat', $4, $5, 'failed')""",
-                        api_call_id, user_id, request.model_id, error_status, str(e)[:500]
-                    )
-                    raise ac_error(error_status, "AC_422", f"Provider rejected request: {str(e)[:200]}")
+                # Always try fallback for provider-level errors (401/402/403/404/429/5xx)
+                # These are provider issues (bad key, no credits, quota, deprecated model)
+                # not request format issues — a different provider can handle the same request
 
                 fallback = await get_fallback_model(conn, used_model["provider_slug"])
                 if not fallback:
@@ -721,7 +716,42 @@ async def chat_stream(
         if not api_key:
             raise ac_error(400, "AC_400", f"No API key configured for {model['provider_slug']}.")
 
-    adapter_class = ADAPTERS.get(model["provider_slug"], GenericOpenAIAdapter)
+        # Pre-build fallback chain (up to 2 fallbacks) while we have a DB connection
+        fallback_chain = [
+            {
+                "model_identifier": model["model_identifier"],
+                "api_key": api_key,
+                "api_base": model["api_base_url"],
+                "provider_slug": model["provider_slug"],
+            }
+        ]
+        excluded = {model["provider_slug"]}
+        for _ in range(2):
+            fb = None
+            for provider_slug in FALLBACK_PROVIDER_ORDER:
+                if provider_slug in excluded:
+                    continue
+                env_key = f"{provider_slug.upper().replace('-', '_')}_API_KEY"
+                fb_key = os.getenv(env_key)
+                if not fb_key:
+                    continue
+                fb = await conn.fetchrow(
+                    """SELECT m.*, p.slug as provider_slug, p.api_base_url
+                       FROM ai_models m JOIN ai_providers p ON m.provider_id = p.id
+                       WHERE p.slug = $1 AND m.status = 'active' AND m.model_type = 'llm'
+                       ORDER BY m.total_api_calls DESC LIMIT 1""",
+                    provider_slug
+                )
+                if fb:
+                    fallback_chain.append({
+                        "model_identifier": fb["model_identifier"],
+                        "api_key": fb_key,
+                        "api_base": fb["api_base_url"],
+                        "provider_slug": fb["provider_slug"],
+                    })
+                    excluded.add(provider_slug)
+                    break
+
     request_data = {
         "messages": [{"role": m.role, "content": m.content} for m in request.messages],
         "temperature": request.temperature,
@@ -729,18 +759,33 @@ async def chat_stream(
     }
 
     async def event_generator():
-        try:
-            async for chunk in adapter_class.stream_call(
-                model_identifier=model["model_identifier"],
-                api_key=api_key,
-                api_base=model["api_base_url"],
-                request_data=request_data,
-            ):
-                yield chunk
-        except Exception as e:
-            error_chunk = {"error": {"code": "AC_503", "message": f"Stream error: {str(e)[:200]}"}}
-            yield f"data: {json.dumps(error_chunk)}\n\n"
-            yield "data: [DONE]\n\n"
+        for attempt_idx, candidate in enumerate(fallback_chain):
+            try:
+                adapter_cls = ADAPTERS.get(candidate["provider_slug"], GenericOpenAIAdapter)
+                chunks_sent = False
+                async for chunk in adapter_cls.stream_call(
+                    model_identifier=candidate["model_identifier"],
+                    api_key=candidate["api_key"],
+                    api_base=candidate["api_base"],
+                    request_data=request_data,
+                ):
+                    chunks_sent = True
+                    yield chunk
+                return  # success — stop iteration
+            except Exception as e:
+                if chunks_sent:
+                    # Already started streaming — can't retry; surface the error
+                    error_chunk = {"error": {"code": "AC_503", "message": f"Stream interrupted: {str(e)[:200]}"}}
+                    yield f"data: {json.dumps(error_chunk)}\n\n"
+                    yield "data: [DONE]\n\n"
+                    return
+                # No chunks sent yet — log and try next fallback
+                print(f"[stream] attempt {attempt_idx + 1} failed ({candidate['provider_slug']}): {e}")
+                if attempt_idx == len(fallback_chain) - 1:
+                    # All providers exhausted
+                    error_chunk = {"error": {"code": "AC_503", "message": "All providers unavailable. Please try again later."}}
+                    yield f"data: {json.dumps(error_chunk)}\n\n"
+                    yield "data: [DONE]\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -830,6 +875,66 @@ async def archive_conversation(
             conversation_id, user_id
         )
         return {"message": "Conversation archived"}
+
+class SaveMessagesRequest(BaseModel):
+    user_content: str
+    assistant_content: str
+    model_id: str
+    input_tokens: int = 0
+    output_tokens: int = 0
+    aicaffe_tokens_charged: int = 0
+    latency_ms: int = 0
+
+@app.post("/api/v1/assistant/conversations/{conversation_id}/messages")
+async def save_messages(
+    conversation_id: str,
+    data: SaveMessagesRequest,
+    user_id: str = Depends(get_user_id)
+):
+    """Persist a user+assistant message pair after a streaming response completes."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        conv = await conn.fetchrow(
+            "SELECT id FROM conversations WHERE id = $1 AND user_id = $2",
+            conversation_id, user_id
+        )
+        if not conv:
+            raise ac_error(404, "AC_404", "Conversation not found")
+
+        await conn.execute(
+            """INSERT INTO messages (id, conversation_id, role, content, model_id, input_tokens)
+               VALUES ($1, $2, 'user', $3, $4, $5)""",
+            str(uuid.uuid4()), conversation_id, data.user_content, data.model_id, data.input_tokens
+        )
+        await conn.execute(
+            """INSERT INTO messages (id, conversation_id, role, content, model_id, output_tokens,
+               aicaffe_tokens_charged, latency_ms)
+               VALUES ($1, $2, 'assistant', $3, $4, $5, $6, $7)""",
+            str(uuid.uuid4()), conversation_id, data.assistant_content, data.model_id,
+            data.output_tokens, data.aicaffe_tokens_charged, data.latency_ms
+        )
+        await conn.execute(
+            """UPDATE conversations SET total_messages = total_messages + 2,
+               total_tokens_used = total_tokens_used + $1, last_message_at = NOW()
+               WHERE id = $2""",
+            data.aicaffe_tokens_charged, conversation_id
+        )
+    return {"saved": True}
+
+@app.put("/api/v1/assistant/conversations/{conversation_id}/title")
+async def update_title(
+    conversation_id: str,
+    title: str,
+    user_id: str = Depends(get_user_id)
+):
+    """Update conversation title."""
+    pool = await get_pool()
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE conversations SET title = $1 WHERE id = $2 AND user_id = $3",
+            title[:120], conversation_id, user_id
+        )
+    return {"updated": True}
 
 @app.put("/api/v1/assistant/conversations/{conversation_id}/model")
 async def switch_model(
